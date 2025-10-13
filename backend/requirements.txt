@@ -1,0 +1,38 @@
+# Web框架
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# AI & LangChain
+langchain==0.1.4
+langchain-openai==0.0.5
+langchain-community==0.0.16
+openai==1.10.0
+
+# 向量数据库
+chromadb==0.4.22
+
+# 数据库
+sqlalchemy==2.0.25
+alembic==1.13.1
+
+# 数据处理
+pydantic==2.5.3
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+
+# 工具库
+pandas==2.2.0
+numpy==1.26.3
+python-dateutil==2.8.2
+
+# HTTP客户端
+httpx==0.26.0
+requests==2.31.0
+
+# 日志
+loguru==0.7.2
+
+# 其他
+tiktoken==0.5.2
+tenacity==8.2.3
