@@ -22,6 +22,7 @@ class User(Base):
     name = Column(String(100), nullable=False)
     age = Column(Integer)
     gender = Column(String(10))
+    height = Column(Integer)  # 身高（cm）
     
     # 慢性病信息
     disease_type = Column(Enum(DiseaseType), nullable=False)

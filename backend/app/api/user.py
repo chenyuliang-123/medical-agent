@@ -19,6 +19,7 @@ class UserCreate(BaseModel):
     name: str
     age: Optional[int] = None
     gender: Optional[str] = None
+    height: Optional[int] = None  # 身高(cm)
     disease_type: str
     diagnosis_date: Optional[datetime] = None
     phone: Optional[str] = None
@@ -32,6 +33,7 @@ class UserResponse(BaseModel):
     name: str
     age: Optional[int]
     gender: Optional[str]
+    height: Optional[int]
     disease_type: str
     diagnosis_date: Optional[datetime]
 
@@ -50,6 +52,7 @@ def create_user(user_data: UserCreate, db: Session = Depends(get_db)):
             name=user_data.name,
             age=user_data.age,
             gender=user_data.gender,
+            height=user_data.height,
             disease_type=DiseaseType(user_data.disease_type),
             diagnosis_date=user_data.diagnosis_date,
             phone=user_data.phone,
@@ -65,6 +68,7 @@ def create_user(user_data: UserCreate, db: Session = Depends(get_db)):
             name=user.name,
             age=user.age,
             gender=user.gender,
+            height=user.height,
             disease_type=user.disease_type.value,
             diagnosis_date=user.diagnosis_date
         )
@@ -88,6 +92,7 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
         name=user.name,
         age=user.age,
         gender=user.gender,
+        height=user.height,
         disease_type=user.disease_type.value,
         diagnosis_date=user.diagnosis_date
     )

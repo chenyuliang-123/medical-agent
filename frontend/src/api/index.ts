@@ -118,6 +118,10 @@ export const healthAPI = {
   // 添加体重数据
   addWeight: (data: any) => {
     return api.post('/health/weight', data)
+  },
+  // 获取体重数据
+  getWeight: (userId: number, limit = 10) => {
+    return api.get(`/health/weight/${userId}`, { params: { limit } })
   }
 }
 

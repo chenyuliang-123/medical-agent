@@ -36,6 +36,7 @@ class WeightCreate(BaseModel):
     """体重数据创建"""
     user_id: int
     value: float
+    height: Optional[float] = None  # 身高(cm)，用于计算BMI
     bmi: Optional[float] = None
     measured_at: datetime
     notes: Optional[str] = None
@@ -86,17 +87,38 @@ def create_blood_pressure(data: BloodPressureCreate, db: Session = Depends(get_d
 def create_weight(data: WeightCreate, db: Session = Depends(get_db)):
     """添加体重数据"""
     try:
+        from ..models import User
+        
+        # 自动计算BMI
+        bmi = data.bmi
+        if bmi is None:
+            # 优先使用本次输入的身高，否则使用用户默认身高
+            height = data.height
+            if height is None:
+                user = db.query(User).filter(User.id == data.user_id).first()
+                if user and user.height:
+                    height = user.height
+            
+            if height:
+                # BMI = 体重(kg) / (身高(m))^2
+                height_m = height / 100  # 转换为米
+                bmi = round(data.value / (height_m ** 2), 2)
+        
         record = Weight(
             user_id=data.user_id,
             value=data.value,
-            bmi=data.bmi,
+            bmi=bmi,
             measured_at=data.measured_at,
             notes=data.notes
         )
         db.add(record)
         db.commit()
         db.refresh(record)
-        return {"message": "体重数据已添加", "id": record.id}
+        return {
+            "message": "体重数据已添加",
+            "id": record.id,
+            "bmi": bmi
+        }
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -137,6 +159,27 @@ def get_blood_pressure(user_id: int, limit: int = 10, db: Session = Depends(get_
                 "systolic": r.systolic,
                 "diastolic": r.diastolic,
                 "heart_rate": r.heart_rate,
+                "measured_at": r.measured_at.isoformat(),
+                "notes": r.notes
+            }
+            for r in records
+        ]
+    }
+
+
+@router.get("/weight/{user_id}")
+def get_weight(user_id: int, limit: int = 10, db: Session = Depends(get_db)):
+    """获取体重数据"""
+    records = db.query(Weight).filter(
+        Weight.user_id == user_id
+    ).order_by(Weight.measured_at.desc()).limit(limit).all()
+    
+    return {
+        "data": [
+            {
+                "id": r.id,
+                "value": r.value,
+                "bmi": r.bmi,
                 "measured_at": r.measured_at.isoformat(),
                 "notes": r.notes
             }

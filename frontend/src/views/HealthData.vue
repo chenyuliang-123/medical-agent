@@ -162,6 +162,15 @@
             />
             <span style="margin-left: 8px;">kg</span>
           </el-form-item>
+          <el-form-item label="身高">
+            <el-input-number
+              v-model="formData.height"
+              :min="100"
+              :max="250"
+              :precision="0"
+            />
+            <span style="margin-left: 8px;">cm（用于计算BMI）</span>
+          </el-form-item>
         </template>
         
         <el-form-item label="备注">
@@ -204,6 +213,7 @@ const formData = ref({
   systolic: 120,
   diastolic: 80,
   heart_rate: 75,
+  height: 170,
   notes: ''
 })
 
@@ -226,6 +236,7 @@ const showAddDialog = (type: string) => {
     systolic: 120,
     diastolic: 80,
     heart_rate: 75,
+    height: 170,
     notes: ''
   }
   dialogVisible.value = true
@@ -258,8 +269,10 @@ const handleAdd = async () => {
     } else if (dataType.value === 'weight') {
       await healthAPI.addWeight({
         ...data,
-        value: formData.value.value
+        value: formData.value.value,
+        height: formData.value.height
       })
+      loadWeightData()
     }
     
     ElMessage.success('添加成功')
@@ -285,6 +298,15 @@ const loadPressureData = async () => {
     pressureData.value = response.data
   } catch (error) {
     console.error('加载血压数据失败', error)
+  }
+}
+
+const loadWeightData = async () => {
+  try {
+    const response: any = await healthAPI.getWeight(userId.value, 20)
+    weightData.value = response.data
+  } catch (error) {
+    console.error('加载体重数据失败', error)
   }
 }
 
@@ -335,6 +357,7 @@ const getPressureStatus = (systolic: number, diastolic: number) => {
 onMounted(() => {
   loadGlucoseData()
   loadPressureData()
+  loadWeightData()
 })
 </script>
 
