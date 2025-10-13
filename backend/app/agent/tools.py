@@ -12,16 +12,11 @@ from ..models.health_data import MeasurementType
 from ..models.reminder import ReminderType
 
 
-class HealthTools:
-    """健康管理工具类"""
-    
-    def __init__(self, db: Session, user_id: int):
-        self.db = db
-        self.user_id = user_id
+def get_agent_tools(db: Session, user_id: int) -> List:
+    """获取Agent可用的工具列表"""
     
     @tool
     def query_health_data(
-        self,
         data_type: str,
         days: int = 7,
         limit: int = 10
@@ -42,9 +37,9 @@ class HealthTools:
             
             # 根据类型查询
             if data_type == "blood_glucose":
-                query = self.db.query(BloodGlucose).filter(
+                query = db.query(BloodGlucose).filter(
                     and_(
-                        BloodGlucose.user_id == self.user_id,
+                        BloodGlucose.user_id == user_id,
                         BloodGlucose.measured_at >= start_date
                     )
                 ).order_by(desc(BloodGlucose.measured_at)).limit(limit)
@@ -60,9 +55,9 @@ class HealthTools:
                     })
                     
             elif data_type == "blood_pressure":
-                query = self.db.query(BloodPressure).filter(
+                query = db.query(BloodPressure).filter(
                     and_(
-                        BloodPressure.user_id == self.user_id,
+                        BloodPressure.user_id == user_id,
                         BloodPressure.measured_at >= start_date
                     )
                 ).order_by(desc(BloodPressure.measured_at)).limit(limit)
@@ -78,9 +73,9 @@ class HealthTools:
                     })
                     
             elif data_type == "weight":
-                query = self.db.query(Weight).filter(
+                query = db.query(Weight).filter(
                     and_(
-                        Weight.user_id == self.user_id,
+                        Weight.user_id == user_id,
                         Weight.measured_at >= start_date
                     )
                 ).order_by(desc(Weight.measured_at)).limit(limit)
@@ -113,7 +108,7 @@ class HealthTools:
             return json.dumps({"error": str(e)}, ensure_ascii=False)
     
     @tool
-    def analyze_health_trend(self, data_type: str, days: int = 30) -> str:
+    def analyze_health_trend(data_type: str, days: int = 30) -> str:
         """
         分析健康数据趋势
         
@@ -127,9 +122,9 @@ class HealthTools:
             start_date = datetime.now() - timedelta(days=days)
             
             if data_type == "blood_glucose":
-                records = self.db.query(BloodGlucose).filter(
+                records = db.query(BloodGlucose).filter(
                     and_(
-                        BloodGlucose.user_id == self.user_id,
+                        BloodGlucose.user_id == user_id,
                         BloodGlucose.measured_at >= start_date
                     )
                 ).order_by(BloodGlucose.measured_at).all()
@@ -177,9 +172,9 @@ class HealthTools:
                 }, ensure_ascii=False)
                 
             elif data_type == "blood_pressure":
-                records = self.db.query(BloodPressure).filter(
+                records = db.query(BloodPressure).filter(
                     and_(
-                        BloodPressure.user_id == self.user_id,
+                        BloodPressure.user_id == user_id,
                         BloodPressure.measured_at >= start_date
                     )
                 ).order_by(BloodPressure.measured_at).all()
@@ -215,7 +210,6 @@ class HealthTools:
     
     @tool
     def create_reminder(
-        self,
         title: str,
         reminder_type: str,
         remind_time: str,
@@ -259,7 +253,7 @@ class HealthTools:
             }
             
             reminder = Reminder(
-                user_id=self.user_id,
+                user_id=user_id,
                 reminder_type=type_map.get(reminder_type, ReminderType.CUSTOM),
                 title=title,
                 content=content,
@@ -268,8 +262,8 @@ class HealthTools:
                 recurrence_pattern=recurrence_pattern
             )
             
-            self.db.add(reminder)
-            self.db.commit()
+            db.add(reminder)
+            db.commit()
             
             return json.dumps({
                 "success": True,
@@ -279,11 +273,11 @@ class HealthTools:
             }, ensure_ascii=False)
             
         except Exception as e:
-            self.db.rollback()
+            db.rollback()
             return json.dumps({"error": str(e)}, ensure_ascii=False)
     
     @tool
-    def calculate_health_metrics(self, metric_type: str, **params) -> str:
+    def calculate_health_metrics(metric_type: str, **params) -> str:
         """
         计算健康指标
         
@@ -354,7 +348,7 @@ class HealthTools:
             return json.dumps({"error": str(e)}, ensure_ascii=False)
     
     @tool
-    def search_knowledge(self, query: str) -> str:
+    def search_knowledge(query: str) -> str:
         """
         检索医疗知识库
         
@@ -417,14 +411,10 @@ class HealthTools:
             }, ensure_ascii=False)
 
 
-def get_agent_tools(db: Session, user_id: int) -> List:
-    """获取Agent可用的工具列表"""
-    health_tools = HealthTools(db, user_id)
-    
     return [
-        health_tools.query_health_data,
-        health_tools.analyze_health_trend,
-        health_tools.create_reminder,
-        health_tools.calculate_health_metrics,
-        health_tools.search_knowledge,
+        query_health_data,
+        analyze_health_trend,
+        create_reminder,
+        calculate_health_metrics,
+        search_knowledge,
     ]

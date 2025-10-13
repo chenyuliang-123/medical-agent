@@ -1,5 +1,35 @@
 <template>
   <div class="chat-container">
+    <!-- 会话列表 -->
+    <el-card class="sessions-card">
+      <template #header>
+        <div class="sessions-header">
+          <span>历史会话</span>
+          <el-button size="small" type="primary" @click="createNewSession">
+            新建对话
+          </el-button>
+        </div>
+      </template>
+      <div class="sessions-list">
+        <div
+          v-for="session in sessions"
+          :key="session.session_id"
+          :class="['session-item', { active: session.session_id === sessionId }]"
+          @click="switchSession(session.session_id)"
+        >
+          <div class="session-title">{{ session.title }}</div>
+          <div class="session-info">
+            <span class="session-time">{{ formatTime(session.last_message_time) }}</span>
+            <span class="session-count">{{ session.message_count }}条</span>
+          </div>
+        </div>
+        <div v-if="sessions.length === 0" class="empty-sessions">
+          暂无历史会话
+        </div>
+      </div>
+    </el-card>
+    
+    <!-- 聊天区域 -->
     <el-card class="chat-card">
       <!-- 消息列表 -->
       <div class="messages-container" ref="messagesContainer">
@@ -114,12 +144,32 @@ interface Message {
   tool_calls?: any[]
 }
 
+interface Session {
+  session_id: string
+  title: string
+  last_message_time: string
+  message_count: number
+}
+
 const messages = ref<Message[]>([])
+const sessions = ref<Session[]>([])
 const inputMessage = ref('')
 const loading = ref(false)
 const messagesContainer = ref<HTMLElement>()
-const sessionId = ref<string>()
 const userId = ref(1) // 默认用户ID，实际应该从登录状态获取
+
+// 从localStorage获取或创建session_id
+const getSessionId = () => {
+  const stored = localStorage.getItem(`chat_session_${userId.value}`)
+  if (stored) {
+    return stored
+  }
+  const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  localStorage.setItem(`chat_session_${userId.value}`, newSessionId)
+  return newSessionId
+}
+
+const sessionId = ref<string>(getSessionId())
 
 // 格式化消息内容
 const formatMessage = (content: string) => {
@@ -176,6 +226,9 @@ const handleSend = async () => {
     })
     
     scrollToBottom()
+    
+    // 刷新会话列表
+    loadSessions()
   } catch (error) {
     ElMessage.error('发送失败，请重试')
   } finally {
@@ -194,32 +247,68 @@ const handleClear = async () => {
   try {
     await chatAPI.clearHistory(userId.value, sessionId.value)
     messages.value = []
-    sessionId.value = undefined
+    // 清除localStorage中的session_id
+    localStorage.removeItem(`chat_session_${userId.value}`)
+    // 创建新的session_id
+    sessionId.value = getSessionId()
     ElMessage.success('对话已清空')
   } catch (error) {
     ElMessage.error('清空失败')
   }
 }
 
+// 加载会话列表
+const loadSessions = async () => {
+  try {
+    const response: any = await chatAPI.getSessions(userId.value)
+    sessions.value = response.sessions || []
+  } catch (error) {
+    console.error('加载会话列表失败', error)
+  }
+}
+
 // 加载历史对话
 const loadHistory = async () => {
   try {
-    const response: any = await chatAPI.getHistory(userId.value)
+    const response: any = await chatAPI.getHistory(userId.value, sessionId.value)
     if (response.history && response.history.length > 0) {
       messages.value = response.history.map((msg: any) => ({
         role: msg.role,
         content: msg.content,
-        time: dayjs().format('HH:mm'),
+        time: dayjs(msg.created_at || new Date()).format('HH:mm'),
         tool_calls: msg.tool_calls
       }))
       scrollToBottom()
+    } else {
+      messages.value = []
     }
   } catch (error) {
     console.error('加载历史失败', error)
   }
 }
 
+// 切换会话
+const switchSession = async (newSessionId: string) => {
+  sessionId.value = newSessionId
+  localStorage.setItem(`chat_session_${userId.value}`, newSessionId)
+  await loadHistory()
+}
+
+// 创建新会话
+const createNewSession = () => {
+  localStorage.removeItem(`chat_session_${userId.value}`)
+  sessionId.value = getSessionId()
+  messages.value = []
+  loadSessions()
+}
+
+// 格式化时间
+const formatTime = (time: string) => {
+  return dayjs(time).format('MM-DD HH:mm')
+}
+
 onMounted(() => {
+  loadSessions()
   loadHistory()
 })
 </script>
@@ -227,23 +316,131 @@ onMounted(() => {
 <style scoped>
 .chat-container {
   display: grid;
-  grid-template-columns: 1fr 280px;
+  grid-template-columns: 260px 1fr 280px;
   gap: 20px;
   height: calc(100vh - 120px);
+}
+
+/* 会话列表样式 */
+.sessions-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.sessions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sessions-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.session-item {
+  padding: 12px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: 1px solid transparent;
+}
+
+.session-item:hover {
+  background: #f5f7fa;
+}
+
+.session-item.active {
+  background: #ecf5ff;
+  border-color: #409eff;
+}
+
+.session-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #909399;
+}
+
+.session-time {
+  flex: 1;
+}
+
+.session-count {
+  margin-left: 8px;
+}
+
+.empty-sessions {
+  text-align: center;
+  padding: 40px 20px;
+  color: #909399;
+  font-size: 14px;
 }
 
 .chat-card {
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden; /* 防止整个卡片滚动 */
+}
+
+.chat-card :deep(.el-card__body) {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
 }
 
 .messages-container {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: scroll !important; /* 强制显示滚动条 */
+  overflow-x: hidden;
   padding: 20px;
   background: #f5f7fa;
   border-radius: 4px;
+  min-height: 0; /* 重要：确保flex子元素可以滚动 */
+  max-height: 100%; /* 限制最大高度 */
+}
+
+/* 自定义滚动条样式 - WebKit浏览器 */
+.messages-container::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.messages-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 5px;
+}
+
+.messages-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 5px;
+  border: 2px solid #f1f1f1;
+}
+
+.messages-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Firefox滚动条样式 */
+.messages-container {
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
 }
 
 .empty-state {
@@ -318,6 +515,10 @@ onMounted(() => {
   border-radius: 8px;
   line-height: 1.6;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: pre-wrap;
+  max-width: 100%;
 }
 
 .message.user .message-text {

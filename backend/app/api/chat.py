@@ -79,3 +79,45 @@ def clear_chat_history(
         return {"message": "对话历史已清除"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/sessions/{user_id}")
+def get_chat_sessions(user_id: int, db: Session = Depends(get_db)):
+    """获取用户的所有会话列表"""
+    try:
+        from ..models import ChatHistory
+        from sqlalchemy import func, desc
+        
+        # 查询所有会话，按最后更新时间排序
+        sessions = db.query(
+            ChatHistory.session_id,
+            func.max(ChatHistory.created_at).label('last_message_time'),
+            func.count(ChatHistory.id).label('message_count')
+        ).filter(
+            ChatHistory.user_id == user_id,
+            ChatHistory.session_id.isnot(None)
+        ).group_by(
+            ChatHistory.session_id
+        ).order_by(
+            desc('last_message_time')
+        ).all()
+        
+        # 获取每个会话的第一条消息作为标题
+        result = []
+        for session in sessions:
+            first_msg = db.query(ChatHistory).filter(
+                ChatHistory.user_id == user_id,
+                ChatHistory.session_id == session.session_id,
+                ChatHistory.role == 'user'
+            ).order_by(ChatHistory.created_at).first()
+            
+            result.append({
+                'session_id': session.session_id,
+                'title': first_msg.content[:30] + '...' if first_msg and len(first_msg.content) > 30 else (first_msg.content if first_msg else '新对话'),
+                'last_message_time': session.last_message_time.isoformat(),
+                'message_count': session.message_count
+            })
+        
+        return {'sessions': result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

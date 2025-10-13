@@ -40,6 +40,10 @@ export const chatAPI = {
   // 清除历史
   clearHistory: (userId: number, sessionId?: string) => {
     return api.delete(`/chat/history/${userId}`, { params: { session_id: sessionId } })
+  },
+  // 获取会话列表
+  getSessions: (userId: number) => {
+    return api.get(`/chat/sessions/${userId}`)
   }
 }
 

@@ -21,7 +21,11 @@
 - Python 3.10+
 - FastAPI - Web框架
 - LangChain - Agent框架
-- OpenAI GPT-4 / Claude - LLM
+- **LLM支持**：
+  - ✅ OpenAI GPT-4
+  - ✅ 智谱AI GLM-4（推荐，免费）⭐
+  - ✅ 阿里通义千问
+  - ✅ 百度文心一言
 - ChromaDB - 向量数据库
 - SQLAlchemy - ORM
 - SQLite - 数据库
@@ -85,7 +89,9 @@ pip install -r requirements.txt
 
 # 配置环境变量
 copy .env.example .env
-# 编辑.env文件，填入OpenAI API Key
+# 编辑.env文件，填入API Key
+# 推荐使用智谱AI（免费）：https://open.bigmodel.cn/
+# 详见：docs/国内LLM接入指南.md
 
 # 启动服务
 python -m uvicorn app.main:app --reload --port 8000
@@ -229,9 +235,14 @@ def your_new_tool(param: str) -> str:
 ### 环境变量（.env）
 
 ```env
-# OpenAI配置
-OPENAI_API_KEY=your_api_key_here
-OPENAI_MODEL=gpt-4-turbo-preview
+# LLM配置（推荐使用智谱AI，免费）
+LLM_PROVIDER=zhipu  # 可选: openai, zhipu
+ZHIPU_API_KEY=your_zhipu_api_key_here
+ZHIPU_MODEL=glm-4
+
+# 或使用OpenAI
+# OPENAI_API_KEY=your_openai_api_key_here
+# OPENAI_MODEL=gpt-4-turbo-preview
 
 # 数据库
 DATABASE_URL=sqlite:///./chronic_disease.db
@@ -243,6 +254,11 @@ CHROMA_PERSIST_DIRECTORY=./chroma_db
 DEBUG=True
 LOG_LEVEL=INFO
 ```
+
+**🇨🇳 国内用户推荐**：使用智谱AI GLM-4
+- 免费额度：2500万Token
+- 注册地址：https://open.bigmodel.cn/
+- 详细教程：[docs/国内LLM接入指南.md](docs/国内LLM接入指南.md)
 
 ## 注意事项
 

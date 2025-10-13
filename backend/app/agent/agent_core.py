@@ -26,11 +26,24 @@ class ChronicDiseaseAgent:
         self.memory = AgentMemory(db, user_id, session_id)
         
         # 初始化LLM
-        self.llm = ChatOpenAI(
-            model=os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview"),
-            temperature=float(os.getenv("OPENAI_TEMPERATURE", "0.7")),
-            api_key=os.getenv("OPENAI_API_KEY")
-        )
+        # 支持OpenAI和智谱AI
+        llm_provider = os.getenv("LLM_PROVIDER", "zhipu")  # openai 或 zhipu
+        
+        if llm_provider == "zhipu":
+            # 使用智谱AI（兼容OpenAI格式）
+            self.llm = ChatOpenAI(
+                model=os.getenv("ZHIPU_MODEL", "glm-4"),
+                temperature=float(os.getenv("LLM_TEMPERATURE", "0.7")),
+                api_key=os.getenv("ZHIPU_API_KEY"),
+                base_url="https://open.bigmodel.cn/api/paas/v4/"
+            )
+        else:
+            # 使用OpenAI
+            self.llm = ChatOpenAI(
+                model=os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview"),
+                temperature=float(os.getenv("LLM_TEMPERATURE", "0.7")),
+                api_key=os.getenv("OPENAI_API_KEY")
+            )
         
         # 获取工具
         self.tools = get_agent_tools(db, user_id)

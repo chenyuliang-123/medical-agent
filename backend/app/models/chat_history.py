@@ -18,7 +18,7 @@ class ChatHistory(Base):
     
     # Agent相关
     tool_calls = Column(JSON)  # 工具调用记录
-    metadata = Column(JSON)  # 其他元数据
+    meta_data = Column(JSON)  # 其他元数据（metadata是SQLAlchemy保留字）
     
     created_at = Column(DateTime, default=func.now())
 
