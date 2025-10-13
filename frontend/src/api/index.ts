@@ -29,9 +29,60 @@ api.interceptors.response.use(
 
 // API接口
 export const chatAPI = {
-  // 发送消息
+  // 发送消息（非流式）
   sendMessage: (data: { message: string; user_id: number; session_id?: string }) => {
     return api.post('/chat', data)
+  },
+  // 发送消息（流式）
+  sendMessageStream: async (
+    data: { message: string; user_id: number; session_id?: string },
+    onMessage: (chunk: any) => void,
+    onError?: (error: any) => void
+  ) => {
+    try {
+      const response = await fetch('/api/chat/stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        throw new Error('Stream request failed')
+      }
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+
+      if (!reader) {
+        throw new Error('No reader available')
+      }
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value)
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              onMessage(data)
+            } catch (e) {
+              console.error('Failed to parse SSE data:', e)
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Stream error:', error)
+      if (onError) {
+        onError(error)
+      }
+    }
   },
   // 获取历史
   getHistory: (userId: number, sessionId?: string) => {

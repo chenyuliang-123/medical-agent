@@ -35,14 +35,16 @@ class ChronicDiseaseAgent:
                 model=os.getenv("ZHIPU_MODEL", "glm-4"),
                 temperature=float(os.getenv("LLM_TEMPERATURE", "0.7")),
                 api_key=os.getenv("ZHIPU_API_KEY"),
-                base_url="https://open.bigmodel.cn/api/paas/v4/"
+                base_url="https://open.bigmodel.cn/api/paas/v4/",
+                streaming=True  # 启用流式输出
             )
         else:
             # 使用OpenAI
             self.llm = ChatOpenAI(
                 model=os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview"),
                 temperature=float(os.getenv("LLM_TEMPERATURE", "0.7")),
-                api_key=os.getenv("OPENAI_API_KEY")
+                api_key=os.getenv("OPENAI_API_KEY"),
+                streaming=True  # 启用流式输出
             )
         
         # 获取工具

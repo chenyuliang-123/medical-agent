@@ -188,7 +188,7 @@ const scrollToBottom = () => {
   })
 }
 
-// 发送消息
+// 发送消息（流式）
 const handleSend = async () => {
   if (!inputMessage.value.trim() || loading.value) return
   
@@ -205,34 +205,69 @@ const handleSend = async () => {
   scrollToBottom()
   loading.value = true
   
+  // 创建AI消息占位符
+  const aiMessageIndex = messages.value.length
+  messages.value.push({
+    role: 'assistant',
+    content: '',
+    time: dayjs().format('HH:mm'),
+    tool_calls: []
+  })
+  
   try {
-    const response: any = await chatAPI.sendMessage({
-      message: userMessage,
-      user_id: userId.value,
-      session_id: sessionId.value
-    })
+    let currentToolCalls: any[] = []
     
-    // 保存session_id
-    if (response.session_id) {
-      sessionId.value = response.session_id
-    }
-    
-    // 添加AI响应
-    messages.value.push({
-      role: 'assistant',
-      content: response.response,
-      time: dayjs().format('HH:mm'),
-      tool_calls: response.tool_calls
-    })
-    
-    scrollToBottom()
-    
-    // 刷新会话列表
-    loadSessions()
+    await chatAPI.sendMessageStream(
+      {
+        message: userMessage,
+        user_id: userId.value,
+        session_id: sessionId.value
+      },
+      (chunk) => {
+        const aiMessage = messages.value[aiMessageIndex]
+        
+        switch (chunk.type) {
+          case 'start':
+            // 保存session_id
+            if (chunk.session_id) {
+              sessionId.value = chunk.session_id
+            }
+            break
+            
+          case 'tool':
+            // 工具调用
+            currentToolCalls.push(chunk.data)
+            aiMessage.tool_calls = [...currentToolCalls]
+            break
+            
+          case 'content':
+            // 流式内容
+            aiMessage.content += chunk.data
+            scrollToBottom()
+            break
+            
+          case 'done':
+            // 完成
+            loading.value = false
+            loadSessions()
+            break
+            
+          case 'error':
+            // 错误
+            aiMessage.content = chunk.message
+            loading.value = false
+            ElMessage.error('AI响应出错')
+            break
+        }
+      },
+      () => {
+        loading.value = false
+        ElMessage.error('发送失败，请重试')
+      }
+    )
   } catch (error) {
-    ElMessage.error('发送失败，请重试')
-  } finally {
     loading.value = false
+    ElMessage.error('发送失败，请重试')
   }
 }
 
