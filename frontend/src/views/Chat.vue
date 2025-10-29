@@ -216,6 +216,8 @@ const handleSend = async () => {
   
   try {
     let currentToolCalls: any[] = []
+    const startTime = Date.now()  // 记录开始时间
+    let firstTokenTime: number | null = null  // 首字时间
     
     await chatAPI.sendMessageStream(
       {
@@ -234,20 +236,37 @@ const handleSend = async () => {
             }
             break
             
+          case 'tool_start':
+            // 工具调用开始 - 显示提示
+            aiMessage.content = `🔧 正在调用工具: ${chunk.tool}...\n`
+            scrollToBottom()
+            break
+            
           case 'tool':
-            // 工具调用
+            // 工具调用完成
             currentToolCalls.push(chunk.data)
             aiMessage.tool_calls = [...currentToolCalls]
+            // 清除工具提示，准备接收内容
+            if (aiMessage.content.startsWith('🔧')) {
+              aiMessage.content = ''
+            }
             break
             
           case 'content':
             // 流式内容
+            if (!firstTokenTime) {
+              firstTokenTime = Date.now()
+              const ttft = firstTokenTime - startTime
+              console.log(`⚡ 首字延迟 (TTFT): ${ttft}ms`)
+            }
             aiMessage.content += chunk.data
             scrollToBottom()
             break
             
           case 'done':
             // 完成
+            const totalTime = Date.now() - startTime
+            console.log(`✅ 总响应时间: ${totalTime}ms`)
             loading.value = false
             loadSessions()
             break
