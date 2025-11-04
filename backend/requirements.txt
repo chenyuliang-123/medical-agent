@@ -15,6 +15,8 @@ chromadb==0.4.22
 # 数据库
 sqlalchemy==2.0.25
 alembic==1.13.1
+pymysql==1.1.0
+cryptography==41.0.7
 
 # 数据处理
 pydantic==2.5.3

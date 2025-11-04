@@ -9,11 +9,28 @@ load_dotenv()
 # 数据库URL
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./chronic_disease.db")
 
+# 根据数据库类型设置连接参数
+connect_args = {}
+engine_kwargs = {
+    "echo": os.getenv("DEBUG", "False") == "True"
+}
+
+if "sqlite" in DATABASE_URL:
+    connect_args = {"check_same_thread": False}
+elif "mysql" in DATABASE_URL:
+    # MySQL 连接池配置
+    engine_kwargs.update({
+        "pool_size": 10,
+        "max_overflow": 20,
+        "pool_recycle": 3600,
+        "pool_pre_ping": True
+    })
+
 # 创建引擎
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
-    echo=os.getenv("DEBUG", "False") == "True"
+    connect_args=connect_args,
+    **engine_kwargs
 )
 
 # 创建会话

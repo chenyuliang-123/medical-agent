@@ -21,8 +21,8 @@ services:
       # 智谱AI 配置
       - ZHIPU_API_KEY=${ZHIPU_API_KEY}
       - ZHIPU_MODEL=${ZHIPU_MODEL:-glm-4}
-      # 数据库配置
-      - DATABASE_URL=sqlite:///./data/agent.db
+      # 数据库配置（使用外部 MySQL 服务器）
+      - DATABASE_URL=${DATABASE_URL:-mysql+pymysql://root:mysql112@10.10.31.112:3306/ai_slow?charset=utf8mb4}
       - CHROMA_PERSIST_DIRECTORY=./data/chroma_db
       # 应用配置
       - APP_ENV=production
