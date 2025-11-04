@@ -223,7 +223,7 @@ def get_agent_tools(db: Session, user_id: int) -> List:
         参数:
         - title: 提醒标题
         - reminder_type: 提醒类型（medication-用药, measurement-测量, exercise-运动, checkup-复查）
-        - remind_time: 提醒时间，格式：YYYY-MM-DD HH:MM 或 HH:MM（今天）
+        - remind_time: 提醒时间，格式：YYYY-MM-DD HH:MM:SS 或 YYYY-MM-DD HH:MM 或 HH:MM（今天）
         - content: 提醒内容（可选）
         - is_recurring: 是否重复（可选）
         - recurrence_pattern: 重复模式（daily-每天, weekly-每周, monthly-每月）
@@ -232,29 +232,56 @@ def get_agent_tools(db: Session, user_id: int) -> List:
         """
         try:
             # 解析时间
+            remind_at = None
+            
+            # 尝试多种时间格式
             if ":" in remind_time and "-" not in remind_time:
-                # 只有时间，默认今天
+                # 只有时间，默认今天（格式：HH:MM 或 HH:MM:SS）
                 time_parts = remind_time.split(":")
-                remind_at = datetime.now().replace(
+                now = datetime.now()
+                remind_at = now.replace(
                     hour=int(time_parts[0]),
                     minute=int(time_parts[1]),
-                    second=0,
+                    second=int(time_parts[2]) if len(time_parts) > 2 else 0,
                     microsecond=0
                 )
+                # 如果时间已过，设置为明天
+                if remind_at < now:
+                    remind_at = remind_at + timedelta(days=1)
             else:
-                remind_at = datetime.strptime(remind_time, "%Y-%m-%d %H:%M")
+                # 尝试不同的日期时间格式
+                formats = [
+                    "%Y-%m-%d %H:%M:%S",
+                    "%Y-%m-%d %H:%M",
+                    "%Y/%m/%d %H:%M:%S",
+                    "%Y/%m/%d %H:%M"
+                ]
+                
+                for fmt in formats:
+                    try:
+                        remind_at = datetime.strptime(remind_time, fmt)
+                        break
+                    except ValueError:
+                        continue
+                
+                if remind_at is None:
+                    raise ValueError(f"无法解析时间格式：{remind_time}，请使用 YYYY-MM-DD HH:MM 或 HH:MM 格式")
             
             # 映射提醒类型
             type_map = {
                 "medication": ReminderType.MEDICATION,
                 "measurement": ReminderType.MEASUREMENT,
                 "exercise": ReminderType.EXERCISE,
-                "checkup": ReminderType.CHECKUP
+                "checkup": ReminderType.CHECKUP,
+                "用药": ReminderType.MEDICATION,
+                "测量": ReminderType.MEASUREMENT,
+                "运动": ReminderType.EXERCISE,
+                "复查": ReminderType.CHECKUP
             }
             
             reminder = Reminder(
                 user_id=user_id,
-                reminder_type=type_map.get(reminder_type, ReminderType.CUSTOM),
+                reminder_type=type_map.get(reminder_type.lower(), ReminderType.CUSTOM),
                 title=title,
                 content=content,
                 remind_at=remind_at,
@@ -264,17 +291,22 @@ def get_agent_tools(db: Session, user_id: int) -> List:
             
             db.add(reminder)
             db.commit()
+            db.refresh(reminder)
             
             return json.dumps({
                 "success": True,
                 "message": f"已创建提醒：{title}",
-                "remind_at": remind_at.strftime("%Y-%m-%d %H:%M"),
-                "is_recurring": is_recurring
+                "remind_at": remind_at.strftime("%Y-%m-%d %H:%M:%S"),
+                "is_recurring": is_recurring,
+                "recurrence_pattern": recurrence_pattern
             }, ensure_ascii=False)
             
         except Exception as e:
             db.rollback()
-            return json.dumps({"error": str(e)}, ensure_ascii=False)
+            return json.dumps({
+                "success": False,
+                "error": f"创建提醒失败：{str(e)}"
+            }, ensure_ascii=False)
     
     @tool
     def calculate_health_metrics(metric_type: str, **params) -> str:
